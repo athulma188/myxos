@@ -15,7 +15,7 @@ integer main(){
 			endif;
 			j = j + 1;
 		endwhile;
-		if (flag == 1) then
+		if (flag == 0) then
 		   print(i);
 		endif;
 		i = i + 1;
