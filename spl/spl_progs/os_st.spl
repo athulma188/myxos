@@ -3,6 +3,18 @@ load(7,1);
 load(8,2);
 ///////////////////////////////
 
+///load timer interrupt code to memory
+load (9,3);
+load (10,4);
+/////////////////////////////////////
+
+
+//loading interrupt 1 code to memory
+load (11,5);
+load (12,6);
+
+/////////////////////////////
+
 //loading interrupt 7 to memory
 load(23,17);
 load(24,18);
