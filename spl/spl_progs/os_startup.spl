@@ -3,6 +3,18 @@ load(7,1);
 load(8,2);
 ///////////////////////////////
 
+///load timer interrupt code to memory
+load (9,3);
+load (10,4);
+/////////////////////////////////////
+
+
+//loading interrupt 1 code to memory
+load (11,5);
+load (12,6);
+
+/////////////////////////////
+
 //loading interrupt 7 to memory
 load(23,17);
 load(24,18);
@@ -18,24 +30,24 @@ load(27,23);
 /////////////////////////////
 
 
-PTBR =  PAGE_TABLE;	//setting page table base 
+PTBR =  1024;	//setting page table base 
 PTLR = 4; //setting page table length
 
 //page table entry 0
 [PTBR + 0] = 25;
-[PTBR + 1] = 01;
+[PTBR + 1] = "01";
 
 //page table entry 1
 [PTBR + 2] = 26;
-[PTBR + 3] = 01;
+[PTBR + 3] = "01";
 
 //page table entry 2
 [PTBR + 4] = 27;
-[PTBR + 5] = 01;
+[PTBR + 5] = "01";
 
 //page table entry 3
 [PTBR + 6] = 28;
-[PTBR + 7] = 01;
+[PTBR + 7] = "01";
 
 
 [READY_LIST + 1] = 2;	//set the task state to 'running'
@@ -43,6 +55,11 @@ PTLR = 4; //setting page table length
 SP = 3 * 512; //setting up the stack pointer for the process
 
 [28 * 512] = 0; 	//setting IP in INIT stack
+
+
+load(5,19);//load FAT to memory
+load (6,20);//load Disk free list to memory
+
 
 
 ireturn;

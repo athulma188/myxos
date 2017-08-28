@@ -1,0 +1,84 @@
+alias phySP S0;
+phySP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);//calculate physical address of the stack pointer
+
+alias sysCallNo S1;
+sysCallNo = [phySP - 1];	//find syscall number
+if( sysCallNo == 1)then
+    alias filename R0;
+    filename = [phySP-3];	//store argument to register
+
+
+/// Check if a file with same name already exists in the FAT;//////
+///////////////////////// If yes return 0 ////////////////////////
+
+    alias i S2;
+    i = FAT;	
+    while (i < FAT + 512) do
+    	  if ([i] == filename)then
+	     [phySP - 2] = 0;
+	     ireturn;
+	  endif;
+	  i = i + 8;
+    endwhile;
+//////////////////////////////////////////////////////////////
+
+
+////////////////  Find a free disk block  ///////////////////////
+//////////////  If there is none, return -1  ////////////////////
+    i = 24;
+    while( i < 448)do
+    	   if ([DISK_LIST + i] == 0)then
+	      break;
+	   endif;
+	   i = i + 1;
+    endwhile;
+
+    if(i == 448)then
+    	 [phySP -2] = -1;
+	 ireturn;
+    endif;
+/////////////////////////////////////////////////////////////
+
+////////////  Search the FAT to find an empty entry/////////////
+//////////////////If not found return -1   ////////////////////
+    alias j S3;
+    j = FAT;
+    while (j < FAT + 512)do
+    	  if([j + 2] == -1)then
+	  	break;
+	  endif;
+	  j = j + 8;
+    endwhile;
+
+    if(j == FAT + 512)then
+    	 [phySP - 2] = -1;
+	 ireturn;
+    endif;
+////////////////////////////////////////////////////////////////
+
+
+    [j] = filename;	// set filename to the FAT entry
+    [j + 1] = 0;	//set filesize to FAT entry
+    [j + 2] = i;	//set the basic block number
+    
+    load(1,i);		//load the basic block to OS scratchpad
+
+/////////////////Clear contents of basic block to all -1's /////////////
+    alias k S4;
+    k = 0;
+    while(k < 512)do
+    	    [k + 512] = -1;
+	    k = k + 1;
+    endwhile;
+
+/////////////////////////////////////////////////////////////////////
+
+    store (1, i);	//Store the basic block back to memory
+    
+    [DISK_LIST + i] = 1;  // Set the entry in Disk free list for the basic block to 1 (Used)
+
+    store(5,19);       // Store FAT to disk
+    store(6,20);       // Store Disk Free List to disk
+    [phySP - 2] = 0;   // return 0
+    ireturn;
+endif;
