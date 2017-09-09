@@ -84,8 +84,78 @@ if( sysCallNo == 1)then
 endif;
 if (sysCallNo == 4) then
    alias filename S5;
-    filename = [phySP-3];	//store argument to register
+   filename = [phySP-3];	//store argument to register
 
+   /// Check if a file with same name already exists in the FAT;//////
+   ///////////////////////// If yes return 0 ////////////////////////
 
+   alias i S2;
+   i = 0;	
+   while (i < 64) do
+   	  if ([FAT + i * 8] == filename)then
+	     break;
+	  endif;
+	  i = i + 1;
+   endwhile;
+   //////////////////////////////////////////////////////////////
 
+   // if file doesnt exist return -1
+   if (i == 64)then
+      [phySP - 2] = -1;
+      ireturn;
+   endif;
+
+   alias FATindex S3;
+   FATindex = i;  //store FAT index 
+
+   // search the system wide open file table for the file
+   i = 0;
+   while (i < 64) do 
+   	 if ([FILE_TABLE + 2 * i] == FATindex) then	// if found return -1
+	    [phySP - 2] = -1;
+	    ireturn;
+	 endif;
+	 i = i + 1;
+   endwhile;
+   /////////////////////////////////////////////////////////
+   
+   i = 0;
+   load (1, [FAT + FATindex * 8 + 2]);	//load basic block to scratchpad
+
+   ///// Clear contents of all data blocks//////////
+   while ( [512 + i] != -1 && i < 512) do 
+   	 alias data S4;
+	 data = [512 + i];
+
+	 load( 1, data); 
+	 alias counter S6;
+	 counter = 0;
+	 while (counter < 512) do
+	       [counter] = "";
+	       counter = counter + 1;
+	 endwhile;
+	 store(1, data);	//store back the data block after clearing
+	 
+	 [DISK_LIST + data] = 0;	// set data block to unused in the Disk Free list
+	 store(6, 20);
+	 
+	 load(1, [FAT + FATindex * 8 + 2]);	//clear the basic block
+	 [512 + i] = "";
+	 store(1,[FAT + FATindex * 8 + 2]);	//store the block to disk
+
+	 i = i + 1;
+   endwhile;
+
+   [DISK_LIST + [FAT + FATindex * 8 + 2]] = 0;	//set the basic block to unused in Disk Free List
+   store(6, 20);     //Store DF list to disk
+
+   //invalidate fat entry
+   [FAT + FATindex * 8] = -1;	    
+   [FAT + FATindex * 8 + 2] = -1;
+   store(5, 19); //Store back the FAT to disk
+   ////////
+
+   [phySP - 2] = 0;	//return 0
+   ireturn;
+   
 endif;

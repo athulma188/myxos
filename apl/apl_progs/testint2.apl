@@ -3,25 +3,34 @@ decl
 enddecl	
 integer main()
 {
+	integer id;
+	
+	print ("Create");
 	status = Create("myfile.dat");
 	print(status);
 	breakpoint;
 
-	status = Open("myfile.dat");
+	print ("Open");
+	id = Open("myfile.dat");
 	print(status);
 	breakpoint;
 	
+	print("Delete");
+	status = Delete("myfile.dat");
+	print(status);
+	breakpoint;
+	
+	
+	print ("Close");
+	status = Close(id);
+	print(status);
+	breakpoint;
 
-	status = Open("myfile.dat");
+	print("Delete");
+	status = Delete("myfile.dat");
 	print(status);
 	breakpoint;
-	status = Close(status);
-	print(status);
-	breakpoint;
-
-	status = Close(status);
-	print(status);
-	breakpoint;
+	
 	
 
 	return 0;
