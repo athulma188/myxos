@@ -1,0 +1,112 @@
+alias phySP S0;
+phySP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);//calculate physical address of the stack pointer
+
+alias sysCallNo S1;
+sysCallNo = [phySP - 1];        //find syscall number
+if( sysCallNo == 2)then
+    alias filename S5;
+    filename = [phySP-3];       //store argument to register
+
+    /// Check if a file with same name already exists in the FAT;//////
+  
+    alias i S2;
+    i = 0;
+    while (i < 64) do
+    	  if ([ FAT + i * 8] == filename)then
+	     break;
+	     endif;
+	     i = i + 1;
+	     endwhile;
+    ////////////////////////////////////////////////////////////////////////
+
+    // if file doesnt exist in FAT table return with error code -1
+    if (i == 64)then
+       [phySP - 2] = -1;
+       print "no fat";
+       ireturn;
+       endif;
+       //////////////////////////////////////
+
+       /// check if the file is already there in the system-wide open file table
+       alias j S3;
+       j = 0;
+       while (j < 64) do
+       	     if ([FILE_TABLE + 2 * j] == i)then
+	     	break;
+		endif;
+	     j = j + 1;
+	     endwhile;
+
+       //// if not find a free entry in the System wide open file table
+       alias counter S4;
+       if ( j == 64 ) then
+       	  counter = 0;
+       	  while (counter < 64) do
+       	  	if ([FILE_TABLE + 2 * counter] == -1) then
+	     	   break;
+		   endif;
+	     	counter = counter + 1;
+	  endwhile;
+		
+ 	  if (counter == 64)then		// if there is no free entry return with code -1
+	     [phySP - 2] = -1;
+	     ireturn;
+	     endif;
+	  j = counter;
+
+	  endif;
+	///////////////////////////////
+
+	
+	alias currentPCB S6;
+	currentPCB = READY_LIST + 32 * ((PTBR - 1024)/8) ;	//find physical address of current PCB
+	counter = 0;
+	while ( counter < 8)do
+	      if ([currentPCB + 15 + 2 * counter] == -1)then	//find a free entry in per process open file table
+	      	 [currentPCB + 15 + 2 * counter] = j;		//set its pointer to the system wide open table entry
+		 [currentPCB + 15 + 2 * counter + 1] = 0;	//set LSEEK position to 0
+		 break;
+		 endif;
+	      counter = counter + 1;
+	      endwhile;
+	if (counter == 8)then	// if no entry is free return with code -1
+	   [phySP - 2] = -1;
+	   ireturn;
+	   endif;
+	   
+	[FILE_TABLE + j * 2] = i;		// set SWOF table entry to point to FAT entry of the input file
+	[FILE_TABLE + j * 2 + 1] = [FILE_TABLE + j * 2 + 1] + 1;
+	[phySP - 2] = counter;
+	ireturn;
+	
+endif;
+
+if (sysCallNo == 3 ) then
+   alias fileDesc S5;
+   fileDesc = [phySP - 3];	// store fileDesc to register
+
+   if( fileDesc < 0 || fileDesc >= 8) then	  // check if the file Descriptor is invalid ( not in range 0 - 7)
+       [phySP - 2] = -1;
+       ireturn;
+   endif;
+
+   alias currPCB S1;
+   currPCB = READY_LIST + ((PTBR - 1024)/8) * 32 ; // find the current process' PCB
+
+   if ([currPCB + 15 + fileDesc * 2] == -1) then // if the per process open file table entry is invalid return -1
+      [phySP - 2] = -1;
+      ireturn;
+   endif;
+
+   alias svote S3;
+   svote = [currPCB + 15 + fileDesc * 2];	//find index of file's entry in the System wide open file table
+   [ FILE_TABLE + svote * 2 + 1] = [ FILE_TABLE + svote * 2 + 1] - 1;  //decrement file open count in System wide open file table entry
+
+   if ([ FILE_TABLE + svote * 2 + 1] == 0) then	// if file open count becomes zero invalidate the entry
+      [ FILE_TABLE + svote * 2] = -1;
+   endif;
+   
+   [ currPCB + 15 + fileDesc * 2] = -1;		// invalidate the per process open file table entry and return 0
+   [phySP - 2] = 0;
+   ireturn;   
+endif;

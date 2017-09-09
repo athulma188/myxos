@@ -1,0 +1,5 @@
+load --init $apl_dir/testint2.xsm
+load --int=1 $spl_dir/int1.xsm
+load --int=2 $spl_dir/int2.xsm
+load --os $spl_dir/os_startup.xsm
+exit

@@ -12,8 +12,14 @@ load (10,4);
 //loading interrupt 1 code to memory
 load (11,5);
 load (12,6);
-
 /////////////////////////////
+
+//loading interrupt 2 code to memory
+load (13,7);
+load (14,8);
+/////////////////////////////
+
+
 
 //loading interrupt 7 to memory
 load(23,17);
@@ -21,7 +27,7 @@ load(24,18);
 ///////////////////////////////
 
 
-[READY_LIST + 0] = 0;	//setting up the PCB
+[READY_LIST + 0] = 0;	//setting up the PCB for INIT
 
 //loading INIT code to memory
 load(25,21);
@@ -52,6 +58,14 @@ PTLR = 4; //setting page table length
 
 [READY_LIST + 1] = 2;	//set the task state to 'running'
 
+alias i S0;
+i = 15;
+while (i <= 30) do
+      [READY_LIST + i] = -1;
+      i = i + 1;
+      endwhile;
+
+
 SP = 3 * 512; //setting up the stack pointer for the process
 
 [28 * 512] = 0; 	//setting IP in INIT stack
@@ -60,6 +74,13 @@ SP = 3 * 512; //setting up the stack pointer for the process
 load(5,19);//load FAT to memory
 load (6,20);//load Disk free list to memory
 
+
+i = 0;  
+while ( i <  128) do	// 64 entries, each of size 2 words		
+      [ FILE_TABLE + i + 0] = -1;	// Set FAT Index to -1
+      [ FILE_TABLE + i + 1] =  0;	// Set File Open Count to 0
+      i = i + 2; 	   // Move to next entry
+      endwhile;	
 
 
 ireturn;

@@ -4,7 +4,7 @@ phySP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);//calculate physical addres
 alias sysCallNo S1;
 sysCallNo = [phySP - 1];	//find syscall number
 if( sysCallNo == 1)then
-    alias filename R0;
+    alias filename S5;
     filename = [phySP-3];	//store argument to register
 
 
@@ -80,5 +80,12 @@ if( sysCallNo == 1)then
     store(5,19);       // Store FAT to disk
     store(6,20);       // Store Disk Free List to disk
     [phySP - 2] = 0;   // return 0
-    ireturn;
+    ireturn;    
+endif;
+if (sysCallNo == 4) then
+   alias filename S5;
+    filename = [phySP-3];	//store argument to register
+
+
+
 endif;
