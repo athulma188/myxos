@@ -19,6 +19,10 @@ load (13,7);
 load (14,8);
 /////////////////////////////
 
+//loading interrupt 4 code to memory
+load (17,11);
+load (18,12);
+/////////////////////////////
 
 
 //loading interrupt 7 to memory

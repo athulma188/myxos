@@ -1,0 +1,84 @@
+alias phySP S0;
+phySP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);//calculate physical address of the stack pointer
+
+alias sysCallNo S1;
+sysCallNo = [phySP - 1];	//find syscall number
+if( sysCallNo == 5)then
+    alias fileDesc S2;
+    alias wordToWrite S3;
+
+    fileDesc = [phySP - 4];	// fetch the file descriptor from stack
+    wordToWrite = [phySP - 3];  // fetch the word to write from stack
+
+    if( fileDesc < 0 || fileDesc >= 8) then	  // check if the file Descriptor is invalid ( not in range 0 - 7)
+       [phySP - 2] = -1;
+       ireturn;
+    endif;
+    //////////////////////////////////////////
+
+    
+    alias currPCB S4;
+    currPCB = READY_LIST + ((PTBR - 1024)/8) * 32;	// find current PCB
+
+    ////// check if the per process open file table entry is valid
+    if( [currPCB + 15 + fileDesc * 2] == -1) then   // if invalid return -1
+    	[phySP -2] = -1;
+	ireturn;
+
+    else
+	alias ftp S5;
+    	alias lseekp S6;
+	ftp = [currPCB + 15 + fileDesc * 2];		// fetch the system wide open file table entry
+	lseekp =  [currPCB + 15 + fileDesc * 2 + 1];	// fetch the lseek position
+
+	alias fatindex S7;
+	fatindex = [FILE_TABLE + 2 * ftp];	// find fat index from the system wide open file table entry
+
+	load(1, [FAT + 8 * fatindex + 2]);	// load the basic block to the scratchpad
+
+	if (lseekp/512 == 256)then  // check if the maximum size of the file is reached.. return -1 if yes
+	   [phySP - 2] = -1;
+	   ireturn;
+	endif;
+
+	// check if the data block to be written to is valid. if yes write to it, else allocate a new data block
+	alias wblock S5;
+	if ( [512 + (lseekp/512)] == -1) then
+
+	     	 /// Search the Disk Free List for a free disk block
+	     	 wblock = 24;
+    		 while( wblock < 448)do
+    	   	 	if ([DISK_LIST + wblock] == 0)then
+	      		   break;
+	   		endif;
+	   		wblock = wblock + 1;
+    		 endwhile;
+		 //////////////////////////////////
+		 
+    		 if(wblock == 448)then		//return -1 if not found
+    	 	      [phySP -2] = -1;
+	 	      ireturn;
+    		 endif;
+
+		 [DISK_LIST + wblock] = 1;	// make status of the found disk block to 'used'
+		 store (6, 20);	      // store the Disk Free List to disk
+		 
+		 [ 512 + (lseekp/512)] = wblock;	// Add the found block number to the basic block of the file
+		 store(1, [FAT + 8 * fatindex +2]);	// store back the basic block to disk
+
+		 [FAT + fatindex * 8 + 1] = [FAT + fatindex * 8 + 1] + 512;	//increment file size by 512 in FAT entry
+		 store(5, 19);	   // store FAT to the disk
+
+	else
+		wblock = [512 + (lseekp/512)];	
+	endif;
+
+	load(1, wblock);	// load the next block to which data is to be written to the scratchpad
+	[512 + (lseekp % 512)] = wordToWrite;	 // Write to the block
+	store(1, wblock);      // store the block to the disk
+	[currPCB + 15 + fileDesc * 2 + 1] = [currPCB + 15 + fileDesc * 2 + 1] + 1;	//increment the lseek position
+
+	[phySP - 2] = 0;	 //return 0;
+	ireturn;
+    endif;
+endif;
