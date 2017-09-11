@@ -39,3 +39,45 @@ if( sysCallNo == 6)then
        ireturn;
     endif;
 endif;
+
+if (sysCallNo == 7)then
+
+   alias fileDesc S2;   
+   fileDesc = [phySP - 4];
+   
+   
+   if( fileDesc < 0 || fileDesc >= 8) then	  // check if the file Descriptor is invalid ( not in range 0 - 7)
+       [phySP - 2] = -1;
+       ireturn;
+    endif;
+    //////////////////////////////////////////
+
+    alias curpcb S3;
+    curpcb = READY_LIST + ((PTBR - 1024)/8) * 32 ;	//find current process' PCB
+    
+    alias swofte S4;
+    alias lseek S5;
+    if( [ curpcb + 15 + fileDesc * 2 ] == -1)then	//if the given file descriptor has invalid entry return -1
+    	[phySP - 2] = -1;
+	ireturn;
+    else
+	swofte = [ curpcb + 15 + fileDesc * 2 ];	// else store the system wide open file table entry index
+	lseek = [ curpcb + 15 + fileDesc * 2 + 1];  // store the lseek position
+    endif;
+
+    alias fatindex S6;
+    fatindex = [FILE_TABLE + 2 * swofte];	//find fat index of open file
+
+    load (1, [FAT + fatindex * 8 + 2]);		// load the basic block of the file to scratchpad
+
+    if (lseek == [ FAT + fatindex * 8 + 1]) then   // check if the lseek pointer is at end of file.. if yes return -1
+       [phySP - 2] = -1;
+       ireturn;
+    else
+       load(1, [512 + (lseek/512)]);	// load data block which is to be read to scratchpad
+       [phySP - 3] = [512 + (lseek % 512)]; // read from the lseek position to the allocated variable in the stack
+       [phySP - 2] = 0;	  //return 0 
+       [curpcb + 15 + fileDesc * 2 + 1] = [curpcb + 15 + fileDesc * 2 + 1] + 1;	//increment the lseek position
+       ireturn;
+    endif;   
+endif;

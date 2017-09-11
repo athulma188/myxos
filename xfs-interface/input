@@ -1,5 +1,9 @@
+load --exhandler $spl_dir/exhandler.xsm
+load --int=7 $spl_dir/int7.xsm
 load --init $apl_dir/testint2.xsm
 load --int=1 $spl_dir/int1.xsm
 load --int=2 $spl_dir/int2.xsm
+load --int=3 $spl_dir/int3.xsm
+load --int=4 $spl_dir/int4.xsm
 load --os $spl_dir/os_startup.xsm
 exit
