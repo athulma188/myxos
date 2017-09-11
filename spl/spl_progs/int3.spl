@@ -1,0 +1,41 @@
+alias phySP S0;
+phySP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);//calculate physical address of the stack pointer
+
+alias sysCallNo S1;
+sysCallNo = [phySP - 1];	//find syscall number
+if( sysCallNo == 6)then
+    alias fileDesc S2;
+    alias newLSeek S3;
+
+    fileDesc = [phySP - 4];
+    newLSeek = [phySP - 3];
+
+    if( fileDesc < 0 || fileDesc >= 8) then	  // check if the file Descriptor is invalid ( not in range 0 - 7)
+       [phySP - 2] = -1;
+       ireturn;
+    endif;
+    //////////////////////////////////////////
+
+    alias curpcb S4;
+    curpcb = READY_LIST + ((PTBR - 1024)/8) * 32 ;	//find current process' PCB
+    
+    alias swofte S5;
+    if( [ curpcb + 15 + fileDesc * 2 ] == -1)then	//if the given file descriptor has invalid entry return -1
+    	[phySP - 2] = -1;
+	ireturn;
+    else
+	swofte = [ curpcb + 15 + fileDesc * 2 ];	// else find the system wide open file table entry index
+    endif;
+
+    alias filesize S6;
+    filesize = [FAT + [FILE_TABLE + swofte * 2] * 8 + 1]; // fetch the file size from the FAT entry 
+
+    if (newLSeek < 0 || newLSeek > filesize)then  // check if new lseek pointer is valid , if not return -1 
+       [phySP - 2] = -1;
+       ireturn;
+    else
+       [curpcb + 15 + fileDesc * 2 + 1] = newLSeek; // set Lseek position to new pointer
+       [phySP - 2] = 0; //return 0
+       ireturn;
+    endif;
+endif;
