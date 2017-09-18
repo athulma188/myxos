@@ -123,15 +123,15 @@ if (sysCallNo == 4) then
    load (1, [FAT + FATindex * 8 + 2]);	//load basic block to scratchpad
 
    ///// Clear contents of all data blocks//////////
-   while ( [512 + i] != -1 && i < 512) do 
+   while ( [SCRATCHPAD + i] != -1 && i < 512) do 
    	 alias data S4;
-	 data = [512 + i];
+	 data = [SCRATCHPAD + i];
 
 	 load( 1, data); 
 	 alias counter S6;
 	 counter = 0;
 	 while (counter < 512) do
-	       [counter] = "";
+	       [SCRATCHPAD + counter] = "";
 	       counter = counter + 1;
 	 endwhile;
 	 store(1, data);	//store back the data block after clearing
@@ -139,12 +139,18 @@ if (sysCallNo == 4) then
 	 [DISK_LIST + data] = 0;	// set data block to unused in the Disk Free list
 	 store(6, 20);
 	 
-	 load(1, [FAT + FATindex * 8 + 2]);	//clear the basic block
-	 [512 + i] = "";
-	 store(1,[FAT + FATindex * 8 + 2]);	//store the block to disk
-
+	 load(1, [FAT + FATindex * 8 + 2]);	//load the basic block
 	 i = i + 1;
    endwhile;
+
+   ///// Clear the basic block//////////////////
+   i = 0;
+   while (i < 512)do
+   	 [SCRATCHPAD + i] = "";
+	 i = i + 1;
+   endwhile;
+   store(1, [FAT + FATindex * 8 + 2]);		//Store back the basic block
+   ////////////////////////////////////////
 
    [DISK_LIST + [FAT + FATindex * 8 + 2]] = 0;	//set the basic block to unused in Disk Free List
    store(6, 20);     //Store DF list to disk
