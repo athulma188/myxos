@@ -22,7 +22,6 @@ if( sysCallNo == 2)then
     // if file doesnt exist in FAT table return with error code -1
     if (i == 64)then
        [phySP - 2] = -1;
-       print "no fat";
        ireturn;
        endif;
        //////////////////////////////////////
