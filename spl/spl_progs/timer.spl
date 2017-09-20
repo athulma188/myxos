@@ -1,0 +1,93 @@
+//find current PID
+alias curr_PID S0;
+curr_PID = (PTBR - 1024) / 8;
+
+//////////////////////////////
+
+//find PCB of current process
+
+alias curr_PCB S1;
+curr_PCB = READY_LIST + 32 * curr_PID;
+
+//////////////////////////////
+
+
+[curr_PCB + 1] = 1;	// Set the current process to ready state
+
+
+//Store Stack pointer and Base Pointer to PCB 
+[ curr_PCB + 2] = BP;
+[ curr_PCB + 3] = SP - 1;	//this is SP - 1 because SP has IP of the current process which was pushed when an interrupt occured
+
+// calculate the physical address corresponding to the stack pointer
+alias phyAddrSP S2;
+phyAddrSP =  ([ PTBR + 2 * (SP / 512) ] * 512) + (SP % 512);
+
+
+[curr_PCB + 4]  = [ phyAddrSP ];      // Store IP of current process from top of stack to PCB
+
+// Store PTBR and PTLR to PCB
+[curr_PCB + 5]  = PTBR;
+[curr_PCB + 6]  = PTLR;
+
+// Store registers to PCB 
+[curr_PCB + 7]  = R0;
+[curr_PCB + 8]  = R1;
+[curr_PCB + 9] 	= R2;
+[curr_PCB + 10] = R3;
+[curr_PCB + 11] = R4;
+[curr_PCB + 12] = R5;
+[curr_PCB + 13] = R6;
+[curr_PCB + 14] = R7;
+/////////////////////////
+
+alias PID S3;
+PID = curr_PID;
+
+// Round robin scheduling of processes
+while (1) do
+      PID = PID + 1;
+      if (PID == 32) then
+	   PID = 0;
+	   endif;
+	   
+      alias PCB S4;
+      PCB = READY_LIST + PID * 32;
+
+      if ([PCB + 1] == 1) then
+      	 break;		
+      endif;     
+endwhile;
+////////////////////////////////
+
+alias newPCB S4;
+newPCB = READY_LIST + PID * 32;
+
+BP   = [newPCB + 2]; //Restoring BP value from PCB to BP register
+SP   = [newPCB + 3]; //Restoring SP value from PCB to SP register
+
+PTBR = [newPCB + 5]; //Restoring PTBR value from PCB to PTBR register
+PTLR = [newPCB + 6]; //Restoring PTLR value from PCB to PTLR register
+
+// Restoring values of registers R0 to R9
+R0   = [newPCB + 7];
+R1   = [newPCB + 8];
+R2   = [newPCB + 9];
+R3   = [newPCB + 10];
+R4   = [newPCB + 11];
+R5   = [newPCB + 12];
+R6   = [newPCB + 13];
+R7   = [newPCB + 14];
+////////////////////////
+
+
+SP = SP + 1;	// incrementing stack pointer to add previous IP to top of stack 
+alias newphySP S3;
+
+newphySP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); //finding the physical address of top of stack
+[ newphySP ] = [newPCB + 4];  //adding old IP to top of stack
+[ newPCB + 1 ] = 2;    //make process state as RUNNING
+
+ireturn;
+
+

@@ -29,14 +29,20 @@ load (17,11);
 load (18,12);
 /////////////////////////////
 
+//loading interrupt 5 code to memory
+load (19,13);
+load (20,14);
+/////////////////////////////
+
+//loading interrupt 6 code to memory
+load (21,15);
+load (22,16);
+/////////////////////////////
 
 //loading interrupt 7 to memory
 load(23,17);
 load(24,18);
 ///////////////////////////////
-
-
-[READY_LIST + 0] = 0;	//setting up the PCB for INIT
 
 //loading INIT code to memory
 load(25,21);
@@ -44,6 +50,11 @@ load(26,22);
 load(27,23);
 /////////////////////////////
 
+load(5,19);//load FAT to memory
+load (6,20);//load Disk free list to memory
+
+
+[READY_LIST + 0] = 0;	//setting up the PCB for INIT
 
 PTBR =  1024;	//setting page table base 
 PTLR = 4; //setting page table length
@@ -64,24 +75,56 @@ PTLR = 4; //setting page table length
 [PTBR + 6] = 28;
 [PTBR + 7] = "01";
 
-
-[READY_LIST + 1] = 2;	//set the task state to 'running'
-
 alias i S0;
+
+//////// Setting up the Page tables ////////////////////
+
+i = 8;
+while(i < 32 * 4)do
+     [PAGE_TABLE + i] = -1;
+     [PAGE_TABLE + i + 1] = "00";     
+     i = i + 2;
+endwhile;
+
+/////////////////////////////////////////////////////
+
+//////// Setting up the Memory Free List //////////////
+i = 0;
+while (i < 64) do
+      if(i <= 28)then
+      	   [MEM_LIST + i] = 1;
+      else
+	   [MEM_LIST + i] = 0;
+      endif;
+      i = i + 1;
+endwhile;
+//////////////////////////////////////////////////////
+
+////////// Initialising all PCBs/////////////////////
+i = 0;
+while ( i < 32) do
+      [READY_LIST + i * 32 + 1] = 0;
+      i = i + 1;
+endwhile;
+///////////////////////////////////////////////////////
+
+/////////////Setting up Per process open file table of INIT///////
 i = 15;
 while (i <= 30) do
       [READY_LIST + i] = -1;
       i = i + 1;
-      endwhile;
+endwhile;
+//////////////////////////////////////////////////////////////////
 
+
+
+[READY_LIST + 1] = 2;	//set the task state to 'running'
 
 SP = 3 * 512; //setting up the stack pointer for the process
 
 [28 * 512] = 0; 	//setting IP in INIT stack
 
 
-load(5,19);//load FAT to memory
-load (6,20);//load Disk free list to memory
 
 
 i = 0;  

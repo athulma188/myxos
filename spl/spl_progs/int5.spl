@@ -1,0 +1,147 @@
+alias phySP S0;
+phySP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);//calculate physical address of the stack pointer
+
+alias sysCallNo S1;
+sysCallNo = [phySP - 1];        //find syscall number
+if( sysCallNo == 8)then
+    alias i S2;
+
+    /////// Search the Ready List for a free process /////////////////
+    i = 1;
+    while (i < 32) do
+    	  if([READY_LIST + 32 * i + 1] == 0)then
+	  	break;
+	  endif;
+	  i = i + 1;
+    endwhile;
+    //////////////////////////////////////////////////////////////
+
+    //// if not found return -1
+    if (i == 32)then
+       [phySP - 2] = -1;
+       ireturn;
+    endif;
+
+    alias newpcb S3;
+    newpcb = i;
+
+    [READY_LIST + 32 * newpcb] = newpcb;	// Set PID of the new process to the PCB index
+
+    ///// find the number of valid pages in the current process ///////
+    alias count S4;
+    i = 0;
+    count = 0;
+    while( i < 8) do
+    	 if ([PTBR + i] != -1)then
+	    count = count + 1;
+	 endif;
+	 i = i + 2;
+    endwhile;
+    ///////////////////////////////////////////////////////////////////
+
+    /// Check if enough pages are available in the memory/////////////
+    alias j S5;
+    j = count;
+    i = 29;
+    while( i < 64)do
+    	   if([MEM_LIST + i] == 0)then
+	   	j =  j - 1;
+	   endif;
+	   if( j == 0)then
+	       break;
+	   endif;
+	   i = i + 1;
+    endwhile;
+    ///////////////////////////////////////////////////////////////////
+
+    /// if not return -1
+    if (j > 0)then
+       [phySP - 2] = -1;
+       ireturn;
+    endif;
+
+    //////// Allocate the pages for the child process //////////////////
+
+    i = 0;
+    j = 29;
+    
+    alias childpt S4;
+    childpt = PAGE_TABLE + newpcb * 8;   // find pagetable of child process
+    while ( i < 4)do
+    	if ([PTBR + i * 2] != -1)then	// if current page considered is valid
+	    while(j < 64)do   		// traverse the memory free list to find free pages
+	        if ([MEM_LIST + j] == 0)then	    // if page is free
+		      [MEM_LIST + j] = 1;
+		      alias k S6;
+		      alias origpage S7;
+		      origpage = [PTBR + i * 2];
+		      k = 0;
+		      
+		      // copy the contents from the current process' page to new allocated page
+		      while( k < 512) do
+		           [j * 512 + k] = [origpage * 512 + k];
+			   k = k + 1;
+		      endwhile;
+		      ///////////
+
+		      // set page table entries of child process
+		      [childpt + i * 2] = j ;	
+		      [childpt + i * 2 + 1 ] = [PTBR + i * 2 + 1];
+		      break;
+		      /////////////////////
+		endif;				
+		
+		j = j + 1;
+	    endwhile;
+	else
+		[childpt + i * 2] = -1 ;	// set page table entry of invalid pages
+		[childpt + i * 2 + 1 ] = "00";
+	endif;
+	i = i + 1;
+     endwhile;
+
+     [READY_LIST + newpcb * 32 + 6 ] = PTLR;	// copy PTLR to child PCB
+     [READY_LIST + newpcb * 32 + 5 ] = childpt;	// set PTBR of child process
+     [READY_LIST + newpcb * 32 + 4 ] = [phySP];	// copy the IP to child process' PCB
+     [READY_LIST + newpcb * 32 + 3 ] = SP - 1;  // copy stack pointer. SP - 1 because IP is on top of the stack now
+     [READY_LIST + newpcb * 32 + 2 ] = BP; // copy BP to child's PCB
+
+     ///// Copy the values of registers to PCB
+     [READY_LIST + newpcb * 32 + 7] = R0;
+     [READY_LIST + newpcb * 32 + 8] = R1;
+     [READY_LIST + newpcb * 32 + 9] = R2;
+     [READY_LIST + newpcb * 32 + 10] = R3;
+     [READY_LIST + newpcb * 32 + 11] = R4;
+     [READY_LIST + newpcb * 32 + 12] = R5;
+     [READY_LIST + newpcb * 32 + 13] = R6;
+     [READY_LIST + newpcb * 32 + 14] = R7;
+     //////////////////////////////////
+     
+     i = 0;
+     alias curpcb S5;
+     curpcb = READY_LIST + ((PTBR - 1024)/8) * 32;
+     alias swofte S4;
+
+     ///// Copy the per process file table to new process' PCB
+     while (i < 8)do
+     	   swofte = [curpcb + 15 + i * 2];
+
+	   ////// Set PCB entries for open file 'i'
+	   [READY_LIST + newpcb * 32 + 15 + i * 2] = swofte;	
+	   [READY_LIST + newpcb * 32 + 15 + i * 2 + 1] = [curpcb + 15 + i * 2 + 1];
+	   
+     	   if (swofte != -1)then
+	       [FILE_TABLE + swofte * 2] = [FILE_TABLE + swofte * 2] + 1;  // increment the file open count in the system eide open file table
+	   endif;
+	   
+     	   i = i + 1;
+     endwhile;
+
+     [READY_LIST + newpcb * 32 + 1] = 1;	// set the state of child process to READY
+     [ phySP - 2] = newpcb; // set return value of current process as PID of child
+     alias ptbr_child S2;
+     ptbr_child = [READY_LIST + 32 * newpcb + 5];
+     [[ptbr_child + 3 * 2] * 512 + ((SP - 1) % 512) - 1] = -2;	// Set the return value of child process as -2
+     ireturn;     
+     
+endif;
