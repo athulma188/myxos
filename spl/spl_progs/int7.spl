@@ -1,0 +1,119 @@
+alias phySP S0;
+phySP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);//calculate physical address of the stack pointer
+
+alias sysCallNo S1;
+sysCallNo = [phySP - 1];        //find syscall number
+if( sysCallNo == 10)then
+
+    alias counter S2;
+    alias flag S3;
+    counter = 0 ;
+    flag = 0;
+
+    /// check if there is atleast one ready process
+    while(counter < 32)do
+    	if ([READY_LIST + 32 * counter + 1] == 1)then
+	   flag = 1;
+	   break;
+	endif;
+	counter = counter + 1;
+    endwhile;
+    /////////////////////////
+
+    if(flag == 0)then	// if there is no ready process halt the machine
+        halt;
+    endif;
+
+
+    /// find the pid of the running process
+    counter = 0;
+    while(counter < 32) do
+        if([READY_LIST + 32 * counter + 1] == 2)then
+      	     break;
+	endif;
+	counter = counter + 1;
+    endwhile;
+    //////////////////////////////////////
+    
+    alias pid S4;
+    pid = [READY_LIST + 32 * counter];
+    
+    ///////////// Close all open files in the process and invalidate their per process open file table entry
+    counter = 0;
+    while(counter < 8)do
+    	if ([READY_LIST + pid * 32 + 15 + counter * 2] != -1)then
+	       alias svote S5;
+   	       svote = [READY_LIST + pid * 32 + 15 + counter * 2];	//find index of file's entry in the System wide open file table
+   	       [ FILE_TABLE + svote * 2 + 1] = [ FILE_TABLE + svote * 2 + 1] - 1;  //decrement file open count in System wide open file table entry
+
+   	       if ([ FILE_TABLE + svote * 2 + 1] == 0) then	// if file open count becomes zero invalidate the entry
+      	       	  [ FILE_TABLE + svote * 2] = -1;
+   	       endif;
+   
+	       [ READY_LIST + pid * 32 + 15 + counter * 2] = -1;		// invalidate the per process open file table entry 
+	       [ READY_LIST + pid * 32 + 15 + counter * 2 + 1] = -1;
+	endif;
+	counter = counter + 1;
+    endwhile;
+    ////////////////////////////////////////////////////////////////////////
+    
+
+    [READY_LIST + 32 * pid + 1] = 0;	/// Set the process state to terminated
+
+    ////////// free all pages of the current process and invalidate the page table entries///////////
+    counter = 0;
+    while(counter < 4)do
+        if([PTBR + counter * 2] != -1)then
+	     [MEM_LIST + [PTBR + counter * 2]] = 0;
+	endif;
+	[PTBR + counter * 2] = -1;
+	[PTBR + counter * 2 + 1] = "00";
+	counter = counter + 1;
+    endwhile;
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+
+    counter = pid;
+    ///////////// Round robin scheduling of processes ///////////////////////
+    while (1) do
+    	    counter = counter + 1;
+      	    if (counter == 32) then
+	       counter = 0;
+	    endif;
+	   
+      	   if ([READY_LIST + counter * 32 + 1] == 1) then
+      	      break;		
+      	   endif;
+    endwhile;
+    ////////////////////////////////
+
+    alias newPCB S5;
+    newPCB = READY_LIST + counter * 32;
+
+    BP   = [newPCB + 2]; //Restoring BP value from PCB to BP register
+    SP   = [newPCB + 3]; //Restoring SP value from PCB to SP register
+
+    PTBR = [newPCB + 5]; //Restoring PTBR value from PCB to PTBR register
+    PTLR = [newPCB + 6]; //Restoring PTLR value from PCB to PTLR register
+
+    // Restoring values of registers R0 to R9
+    R0   = [newPCB + 7];
+    R1   = [newPCB + 8];
+    R2   = [newPCB + 9];
+    R3   = [newPCB + 10];
+    R4   = [newPCB + 11];
+    R5   = [newPCB + 12];
+    R6   = [newPCB + 13];
+    R7   = [newPCB + 14];
+    ////////////////////////
+
+
+    SP = SP + 1;	// incrementing stack pointer to add previous IP to top of stack 
+    alias newphySP S6;
+
+    newphySP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); //finding the physical address of top of stack
+    [ newphySP ] = [newPCB + 4];  //adding old IP to top of stack
+    [ newPCB + 1 ] = 2;    //make process state as RUNNING
+
+    ireturn;
+endif;
