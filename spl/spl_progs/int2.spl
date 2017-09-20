@@ -106,6 +106,7 @@ if (sysCallNo == 3 ) then
    endif;
    
    [ currPCB + 15 + fileDesc * 2] = -1;		// invalidate the per process open file table entry and return 0
+   [ currPCB + 15 + fileDesc * 2 + 1] = -1;
    [phySP - 2] = 0;
    ireturn;   
 endif;
