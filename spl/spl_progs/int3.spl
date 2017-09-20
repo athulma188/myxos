@@ -74,8 +74,8 @@ if (sysCallNo == 7)then
        [phySP - 2] = -1;
        ireturn;
     else
-       load(1, [512 + (lseek/512)]);	// load data block which is to be read to scratchpad
-       [phySP - 3] = [512 + (lseek % 512)]; // read from the lseek position to the allocated variable in the stack
+       load(1, [SCRATCHPAD + (lseek/512)]);	// load data block which is to be read to scratchpad
+       [phySP - 3] = [SCRATCHPAD + (lseek % 512)]; // read from the lseek position to the allocated variable in the stack
        [phySP - 2] = 0;	  //return 0 
        [curpcb + 15 + fileDesc * 2 + 1] = [curpcb + 15 + fileDesc * 2 + 1] + 1;	//increment the lseek position
        ireturn;

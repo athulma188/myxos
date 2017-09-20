@@ -67,7 +67,7 @@ if( sysCallNo == 1)then
     alias k S4;
     k = 0;
     while(k < 512)do
-    	    [k + 512] = -1;
+    	    [SCRATCHPAD + k] = -1;
 	    k = k + 1;
     endwhile;
 
