@@ -1,0 +1,167 @@
+alias phySP S0;
+phySP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);//calculate physical address of the stack pointer
+
+alias sysCallNo S1;
+sysCallNo = [phySP - 1];        //find syscall number
+if( sysCallNo == 9)then
+    alias filename S2;
+    filename = [phySP - 3];
+
+    //////////////// Search FAT for the file with given filename///////////////////////
+    alias counter S3;
+    counter = 0;
+    while(counter < 64) do
+    	if([FAT + counter * 8] == filename)then
+		break;
+	endif;
+	counter = counter + 1;
+    endwhile;
+    //////////////////////////////////////////////////////////////////
+
+    ///////////// if not found return -1 ////////////////////////
+    if( counter == 64)then
+    	[phySP - 2] = -1;
+	ireturn;
+    endif;
+    ////////////////////////////////////////////////////////////
+    
+
+    
+    load (1, [FAT + counter * 8 + 2]);	// load the basic block of file to the scratchpad
+
+    /////////////////// Find the number of code blocks of the new program /////////////////////////
+    alias codeblocks S4;
+    counter = 0;
+    while([SCRATCHPAD + counter] != - 1)do
+    	counter = counter + 1;
+    endwhile;
+    codeblocks = counter;
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+
+    //////////////////// Find the number of valid pages in current process /////////////////////////
+    alias validpages S5;
+    validpages = 0;
+    counter = 0;
+    while(counter < 3)do
+    	if ([PTBR + counter * 2] != -1)then
+	   validpages = validpages + 1;
+	endif;
+	counter = counter + 1;
+    endwhile;
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+
+    ///////// if more pages are to be allocated do it. If not deallocate them /////////////////////
+    
+    if (codeblocks < validpages)then  /// if new program has lesser code blocks than the current one
+        counter = codeblocks;
+	while(counter < 3)do	/// invalidate unnecessary page table entries
+  	     [MEM_LIST + [PTBR + counter * 2]] = 0;   // free the page
+ 	     [PTBR + counter * 2] = -1;
+	     [PTBR + counter * 2 + 1] = "00";
+	     counter = counter + 1;
+	endwhile;
+	
+    //////// if the new program has more number of code blocks/////////////////////////////////////
+    
+    else if (codeblocks > validpages)then    
+
+    	////// Search Memory Free List to check if extra pages are available/////////
+	
+    	alias count S6;
+	count = codeblocks - validpages;
+	counter = 29;
+	while( counter < 64) do	 
+	     if([MEM_LIST + counter] == 0)then
+	     	 count = count - 1;
+ 	     endif;
+	     if(count == 0)then
+	     	 break;
+	     endif;
+	     counter = counter + 1;
+	endwhile;
+
+	/////////////////////////////////////////////////////////////////////////////
+
+
+	/// if not available return -1;///
+	if(count > 0)then
+	     [phySP - 2] = -1;
+	     ireturn;
+	endif;
+	/////////////////////////////////
+
+
+	//////////// if enough pages are available allocate it to the new process ///////////
+		     
+	count = codeblocks - validpages;
+	counter = 29;
+	alias i S7;
+	i = 0;
+	while( counter < 64) do
+	     if([MEM_LIST + counter] == 0)then
+	         [MEM_LIST + counter] = 1;	// set the page as USED
+		 
+		 ///// Set the page table entry to new allocated page //////
+		 
+		 [PTBR + validpages * 2 + i * 2] = counter;  
+		 [PTBR + validpages * 2 + i * 2 + 1] = "01";
+
+		 ///////////////////////////////////////////////////////////
+		 
+		 i = i + 1;
+	     	 count = count - 1;
+ 	     endif;
+	     if(count == 0)then
+	     	 break;
+	     endif;
+	     counter = counter + 1;
+	endwhile;
+    endif;	
+    endif;
+    //////////////////////////////////////////////////////////////////////////////////////////
+
+    /////////////// Load all the code blocks to the pages of the process ////////////////////
+
+    counter = 0;
+    while([SCRATCHPAD + counter] != -1) do
+        load([PTBR + counter * 2], [SCRATCHPAD + counter]);
+	counter = counter + 1;
+    endwhile;
+    
+    /////////////////////////////////////////////////////////////////////////////////////////
+
+
+    alias pid S7;
+    pid = (PTBR - 1024)/8;
+    ///////////// Close all open files in the process and invalidate their per process open file table entry
+
+    counter = 0;
+    while(counter < 8)do
+    	if ([READY_LIST + pid * 32 + 15 + counter * 2] != -1)then
+	       alias svote S6;
+   	       svote = [READY_LIST + pid * 32 + 15 + counter * 2];	//find index of file's entry in the System wide open file table
+   	       [ FILE_TABLE + svote * 2 + 1] = [ FILE_TABLE + svote * 2 + 1] - 1;  //decrement file open count in System wide open file table entry
+
+   	       if ([ FILE_TABLE + svote * 2 + 1] == 0) then	// if file open count becomes zero invalidate the entry
+      	       	  [ FILE_TABLE + svote * 2] = -1;
+   	       endif;
+   
+	       [ READY_LIST + pid * 32 + 15 + counter * 2] = -1;		// invalidate the per process open file table entry 
+	       [ READY_LIST + pid * 32 + 15 + counter * 2 + 1] = -1;
+	endif;
+	counter = counter + 1;
+    endwhile;
+    
+    /////////////////////////////////////////////////////////////////////////////
+
+    SP = 3 * 512;	/// Set the stack pointer to the 4th page in the page table
+
+    alias newphysp S6;
+    newphysp = [PTBR + 3 * 2] * 512;	// Find the physical address of the new stack pointer
+    [newphysp] = 0;  // Push 0 to top of stack so that ireturn sets 0 to IP
+
+    ireturn;	
+
+endif;
