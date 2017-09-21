@@ -171,3 +171,20 @@ if( sysCallNo == 9)then
     ireturn;	
 
 endif;
+
+if( sysCallNo == 11)then
+    alias pid S2;
+    pid = (PTBR - 1024)/8; //find pid of current process from PTBR
+    [phySP - 2] = pid;
+    ireturn;
+endif;
+
+if( sysCallNo == 12)then
+    alias pid S2;
+    alias ppid S3;
+
+    pid = (PTBR - 1024) /8;	// find pid of current process
+    ppid = [READY_LIST + pid * 32 + 31];    // find pid of parent from word 31 of current process' PCB
+    [phySP - 2] = ppid;
+    ireturn;
+endif;

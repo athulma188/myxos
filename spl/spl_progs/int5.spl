@@ -137,10 +137,14 @@ if( sysCallNo == 8)then
      	   i = i + 1;
      endwhile;
 
+     [READY_LIST + newpcb * 32 + 31] = (PTBR - 1024)/8;  // Set process id of parent as pid of current process in child process' PCB
+
      [READY_LIST + newpcb * 32 + 1] = 1;	// set the state of child process to READY
      [ phySP - 2] = newpcb; // set return value of current process as PID of child
+
      alias ptbr_child S2;
      ptbr_child = [READY_LIST + 32 * newpcb + 5];
+
      [[ptbr_child + 3 * 2] * 512 + ((SP - 1) % 512) - 1] = -2;	// Set the return value of child process as -2
      ireturn;     
      

@@ -55,7 +55,7 @@ load (6,20);//load Disk free list to memory
 
 
 [READY_LIST + 0] = 0;	//setting up the PCB for INIT
-
+[READY_LIST + 31] = 0;  //Setting PID of parent of INIT as 0
 PTBR =  1024;	//setting page table base 
 PTLR = 4; //setting page table length
 

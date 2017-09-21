@@ -1,12 +1,18 @@
-load --exhandler $spl_dir/exhandler.xsm
-load --init $apl_dir/test_exec.xsm
-load --int=1 $spl_dir/int1.xsm
-load --int=2 $spl_dir/int2.xsm
-load --int=3 $spl_dir/int3.xsm
-load --int=4 $spl_dir/int4.xsm
-load --int=5 $spl_dir/int5.xsm
-load --int=6 $spl_dir/int6.xsm
-load --int=7 $spl_dir/int7.xsm
-load --int=timer $spl_dir/timer.xsm
-load --os $spl_dir/os_startup.xsm
+fdisk
+load --exhandler ../spl/spl_progs/exhandler.xsm
+load --init ../apl/apl_progs/init.xsm
+load --int=1 ../spl/spl_progs/int1.xsm
+load --int=2 ../spl/spl_progs/int2.xsm
+load --int=3 ../spl/spl_progs/int3.xsm
+load --int=4 ../spl/spl_progs/int4.xsm
+load --int=5 ../spl/spl_progs/int5.xsm
+load --int=6 ../spl/spl_progs/int6.xsm
+load --int=7 ../spl/spl_progs/int7.xsm
+load --int=timer ../spl/spl_progs/timer.xsm
+load --os ../spl/spl_progs/os_startup.xsm
+load --exec ../apl/apl_progs/printnum.xsm
+load --exec ../apl/apl_progs/testfork.xsm
+load --exec ../apl/apl_progs/testexec.xsm
+load --exec ../apl/apl_progs/testexit.xsm
+load --exec ../apl/apl_progs/test_pid.xsm
 exit

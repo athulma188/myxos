@@ -9,12 +9,19 @@ integer main()
 		 print (pid);
 		 if(pid == -2)then
 		 	break;
-			Exit();
 		 endif;
 		 
 		 i = i + 1;
 	endwhile;
 	print ("After Fork");
+
+	i = 0;
+	while(i<100)do
+		if(i == 90)then
+		breakpoint;
+		endif;
+		i = i + 1;
+	endwhile;
 	Exit();
 	return 0;
 }
