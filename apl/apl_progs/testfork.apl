@@ -3,22 +3,23 @@ integer main()
 	integer pid;
 	print ("Before Fork");
 	integer i;
+	integer status;
 	i = 0;
 	while(i < 35)do
 		 pid = Fork();
 		 print (pid);
-		 if (pid == 8)then
-		    breakpoint;
-		 endif;
-		 if(pid != -2)then
+
+		 if(pid == -2)then
 		 	break;
-			endif;
+		 endif;
 		 
 		 i = i + 1;
 	endwhile;
+	status = Wait(pid);
 	print ("After Fork");
-	while(1<2)do
 	i = 0;
+	while(i < 100)do
+	i = i + 1;
 	endwhile;
 	return 0;
 }
