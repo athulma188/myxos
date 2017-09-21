@@ -1,12 +1,46 @@
 alias phySP S0;
 phySP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);//calculate physical address of the stack pointer
 
-alias sysCallNo S1;
+alias curpid S1;
+curpid = (PTBR - 1024)/8;
+
+alias counter S2;
+
+alias sysCallNo S3;
 sysCallNo = [phySP - 1];        //find syscall number
+
+if (sysCallNo == 14)then
+
+   /// Set all processes waiting for current process to READY state //////////////////////
+    counter = 0;
+    while(counter < 32)do
+    	 if([READY_LIST + counter * 32 + 1] == 100 + curpid)then
+	 	[READY_LIST + counter * 32 + 1] = 1;
+	 endif;
+	 counter = counter + 1;
+    endwhile;
+
+    ////////////////////////////////////////////////////////////////////////////////////////
+    [phySP - 2] = 0;
+    ireturn;
+endif;
+
 if( sysCallNo == 10)then
 
-    alias counter S2;
-    alias flag S3;
+
+    // Set all processes waiting for current process to READY state //////////////////////
+    counter = 0;
+    while(counter < 32)do
+    	 if([READY_LIST + counter * 32 + 1] == 100 + curpid)then
+	 	[READY_LIST + counter * 32 + 1] = 1;
+	 endif;
+	 counter = counter + 1;
+    endwhile;
+
+    ////////////////////////////////////////////////////////////////////////////////////////
+    
+
+    alias flag S4;
     counter = 0 ;
     flag = 0;
 
@@ -25,40 +59,27 @@ if( sysCallNo == 10)then
     endif;
 
 
-    /// find the pid of the running process
-    counter = 0;
-    while(counter < 32) do
-        if([READY_LIST + 32 * counter + 1] == 2)then
-      	     break;
-	endif;
-	counter = counter + 1;
-    endwhile;
-    //////////////////////////////////////
-    
-    alias pid S4;
-    pid = [READY_LIST + 32 * counter];
-    
     ///////////// Close all open files in the process and invalidate their per process open file table entry
     counter = 0;
     while(counter < 8)do
-    	if ([READY_LIST + pid * 32 + 15 + counter * 2] != -1)then
+    	if ([READY_LIST + curpid * 32 + 15 + counter * 2] != -1)then
 	       alias svote S5;
-   	       svote = [READY_LIST + pid * 32 + 15 + counter * 2];	//find index of file's entry in the System wide open file table
+   	       svote = [READY_LIST + curpid * 32 + 15 + counter * 2];	//find index of file's entry in the System wide open file table
    	       [ FILE_TABLE + svote * 2 + 1] = [ FILE_TABLE + svote * 2 + 1] - 1;  //decrement file open count in System wide open file table entry
 
    	       if ([ FILE_TABLE + svote * 2 + 1] == 0) then	// if file open count becomes zero invalidate the entry
       	       	  [ FILE_TABLE + svote * 2] = -1;
    	       endif;
    
-	       [ READY_LIST + pid * 32 + 15 + counter * 2] = -1;		// invalidate the per process open file table entry 
-	       [ READY_LIST + pid * 32 + 15 + counter * 2 + 1] = -1;
+	       [ READY_LIST + curpid * 32 + 15 + counter * 2] = -1;		// invalidate the per process open file table entry 
+	       [ READY_LIST + curpid * 32 + 15 + counter * 2 + 1] = -1;
 	endif;
 	counter = counter + 1;
     endwhile;
     ////////////////////////////////////////////////////////////////////////
     
 
-    [READY_LIST + 32 * pid + 1] = 0;	/// Set the process state to terminated
+    [READY_LIST + 32 * curpid + 1] = 0;	/// Set the process state to terminated
 
     ////////// free all pages of the current process and invalidate the page table entries///////////
     counter = 0;
@@ -72,48 +93,108 @@ if( sysCallNo == 10)then
     endwhile;
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-
-    counter = pid;
-    ///////////// Round robin scheduling of processes ///////////////////////
-    while (1) do
-    	    counter = counter + 1;
-      	    if (counter == 32) then
-	       counter = 0;
-	    endif;
-	   
-      	   if ([READY_LIST + counter * 32 + 1] == 1) then
-      	      break;		
-      	   endif;
-    endwhile;
-    ////////////////////////////////
-
-    alias newPCB S5;
-    newPCB = READY_LIST + counter * 32;
-
-    BP   = [newPCB + 2]; //Restoring BP value from PCB to BP register
-    SP   = [newPCB + 3]; //Restoring SP value from PCB to SP register
-
-    PTBR = [newPCB + 5]; //Restoring PTBR value from PCB to PTBR register
-    PTLR = [newPCB + 6]; //Restoring PTLR value from PCB to PTLR register
-
-    // Restoring values of registers R0 to R9
-    R0   = [newPCB + 7];
-    R1   = [newPCB + 8];
-    R2   = [newPCB + 9];
-    R3   = [newPCB + 10];
-    R4   = [newPCB + 11];
-    R5   = [newPCB + 12];
-    R6   = [newPCB + 13];
-    R7   = [newPCB + 14];
-    ////////////////////////
-
-
-    SP = SP + 1;	// incrementing stack pointer to add previous IP to top of stack 
-    alias newphySP S6;
-
-    newphySP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); //finding the physical address of top of stack
-    [ newphySP ] = [newPCB + 4];  //adding old IP to top of stack
-    [ newPCB + 1 ] = 2;    //make process state as RUNNING
-
-    ireturn;
 endif;
+
+if( sysCallNo == 13)then
+    alias waitingpid S4;
+    waitingpid = [phySP - 3]; //get waiting pid from argument
+
+    /// check the validity of PID to be waited for // 
+    if(waitingpid < 0 || waitingpid  >= 32)then
+    	 [phySP - 2] = -1;
+	 ireturn;
+    endif;
+    ////////////////////////////////////////////////////
+
+    /// Return -1 if the process to wait for is the current process or has already terminated /////////
+    
+    if ([READY_LIST + waitingpid * 32 + 1] == 2 || [READY_LIST + waitingpid * 32 + 1] == 0)then
+       [phySP - 2] = -1;
+       ireturn;	
+    endif;
+    ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+    [READY_LIST + curpid * 32 + 1] = 100 + waitingpid;	/// Set state of current process as 100 + waiting PID
+    
+    ///////find PCB of current process ////////////////////////////
+
+    alias curr_PCB S5;
+    curr_PCB = READY_LIST + 32 * curpid;
+
+    ////////////////////////////////////////////////////////
+    
+
+    /////////Store Stack pointer and Base Pointer to PCB 
+    [ curr_PCB + 2] = BP;
+    [ curr_PCB + 3] = SP - 1;	//this is SP - 1 because SP has IP of the current process which was pushed when an interrupt occured
+
+    // calculate the physical address corresponding to the stack pointer
+    alias phyAddrSP S6;
+    phyAddrSP =  ([ PTBR + 2 * (SP / 512) ] * 512) + (SP % 512);
+
+
+    [curr_PCB + 4]  = [ phyAddrSP ];      // Store IP of current process from top of stack to PCB
+
+    // Store PTBR and PTLR to PCB
+    [curr_PCB + 5]  = PTBR;
+    [curr_PCB + 6]  = PTLR;
+
+    // Store registers to PCB 
+    [curr_PCB + 7]  = R0;
+    [curr_PCB + 8]  = R1;
+    [curr_PCB + 9]  = R2;
+    [curr_PCB + 10] = R3;
+    [curr_PCB + 11] = R4;
+    [curr_PCB + 12] = R5;
+    [curr_PCB + 13] = R6;
+    [curr_PCB + 14] = R7;
+    /////////////////////////
+
+    [phySP - 2] = 0;
+endif;
+
+counter = curpid;
+///////////// Round robin scheduling of processes ///////////////////////
+while (1) do
+      counter = counter + 1;
+      if (counter == 32) then
+      	 counter = 0;
+      endif;
+	   
+      if ([READY_LIST + counter * 32 + 1] == 1) then
+          break;		
+      endif;
+endwhile;
+////////////////////////////////
+
+alias newPCB S5;
+newPCB = READY_LIST + counter * 32;
+
+BP   = [newPCB + 2]; //Restoring BP value from PCB to BP register
+SP   = [newPCB + 3]; //Restoring SP value from PCB to SP register
+
+PTBR = [newPCB + 5]; //Restoring PTBR value from PCB to PTBR register
+PTLR = [newPCB + 6]; //Restoring PTLR value from PCB to PTLR register
+
+///// Restoring values of registers R0 to R9
+R0   = [newPCB + 7];
+R1   = [newPCB + 8];
+R2   = [newPCB + 9];
+R3   = [newPCB + 10];
+R4   = [newPCB + 11];
+R5   = [newPCB + 12];
+R6   = [newPCB + 13];
+R7   = [newPCB + 14];
+/////////////////////////
+
+
+SP = SP + 1;	// incrementing stack pointer to add previous IP to top of stack 
+alias newphySP S6;
+
+newphySP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); //finding the physical address of top of stack
+[ newphySP ] = [newPCB + 4];  //adding old IP to top of stack
+[ newPCB + 1 ] = 2;    //make process state as RUNNING
+
+
+ireturn;

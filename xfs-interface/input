@@ -15,4 +15,5 @@ load --exec ../apl/apl_progs/testfork.xsm
 load --exec ../apl/apl_progs/testexec.xsm
 load --exec ../apl/apl_progs/testexit.xsm
 load --exec ../apl/apl_progs/test_pid.xsm
+load --exec ../apl/apl_progs/testwait.xsm
 exit
