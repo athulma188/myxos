@@ -14,19 +14,19 @@ MOV R0, 1
 MOV R1, 1
 EQ R0, R1
 JZ R0, 00720
-MOV R0, "1. Create File"
+MOV R0, "1. Create"
 OUT R0
-MOV R0, "2. Open a File"
+MOV R0, "2. Open"
 OUT R0
-MOV R0, "3. Close a File"
+MOV R0, "3. Close"
 OUT R0
-MOV R0, "4. Delete file"
+MOV R0, "4. Delete"
 OUT R0
-MOV R0, "5. Write to file"
+MOV R0, "5. Write"
 OUT R0
 MOV R0, "6. Seek"
 OUT R0
-MOV R0, "7. Read from file"
+MOV R0, "7. Read"
 OUT R0
 MOV R0, "8. Breakpoint"
 OUT R0

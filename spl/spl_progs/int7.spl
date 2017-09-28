@@ -84,8 +84,15 @@ if( sysCallNo == 10)then
     ////////// free all pages of the current process and invalidate the page table entries///////////
     counter = 0;
     while(counter < 4)do
-        if([PTBR + counter * 2] != -1)then
-	     [MEM_LIST + [PTBR + counter * 2]] = 0;
+    	alias page S5;
+	page = [PTBR + counter * 2];
+        if(page != -1)then
+	     if (page >= 448) then
+	     	[DISK_LIST + page] = [DISK_LIST + page - 1]; //reduce disk block share count
+		store (6,20);
+	     else
+		[MEM_LIST + page] = [MEM_LIST + page] - 1;	// reduce memory block share count
+	     endif;
 	endif;
 	[PTBR + counter * 2] = -1;
 	[PTBR + counter * 2 + 1] = "00";

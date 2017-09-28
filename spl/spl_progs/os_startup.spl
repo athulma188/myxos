@@ -1,3 +1,11 @@
+// load FAT to memory
+load(5,19);
+///////////////////////////////
+
+//load Disk free list to memory
+load (6,20);
+///////////////////////////////
+
 // loading exec handler to memory
 load(7,1);	
 load(8,2);
@@ -45,13 +53,11 @@ load(24,18);
 ///////////////////////////////
 
 //loading INIT code to memory
-load(25,21);
-load(26,22);
-load(27,23);
+//load(25,21);
+//load(26,22);
+//load(27,23);
 /////////////////////////////
 
-load(5,19);//load FAT to memory
-load (6,20);//load Disk free list to memory
 
 
 [READY_LIST + 0] = 0;	//setting up the PCB for INIT
@@ -60,19 +66,19 @@ PTBR =  1024;	//setting page table base
 PTLR = 4; //setting page table length
 
 //page table entry 0
-[PTBR + 0] = 25;
-[PTBR + 1] = "01";
+[PTBR + 0] = 21;
+[PTBR + 1] = "00";
 
 //page table entry 1
-[PTBR + 2] = 26;
-[PTBR + 3] = "01";
+[PTBR + 2] = 22;
+[PTBR + 3] = "00";
 
 //page table entry 2
-[PTBR + 4] = 27;
-[PTBR + 5] = "01";
+[PTBR + 4] = 23;
+[PTBR + 5] = "00";
 
 //page table entry 3
-[PTBR + 6] = 28;
+[PTBR + 6] = 25;
 [PTBR + 7] = "01";
 
 alias i S0;
@@ -91,14 +97,28 @@ endwhile;
 //////// Setting up the Memory Free List //////////////
 i = 0;
 while (i < 64) do
-      if(i <= 28)then
+      if(i <= 25)then
       	   [MEM_LIST + i] = 1;
       else
 	   [MEM_LIST + i] = 0;
       endif;
       i = i + 1;
 endwhile;
+
+
 //////////////////////////////////////////////////////
+
+///////////Clearing the swap area ////////////////////
+
+i = 448;
+while( i < 512) do
+     [DISK_LIST + i] = 0;
+     i = i + 1;
+endwhile;
+
+store (6, 20);	// Store disk free list back to disk
+
+/////////////////////////////////////////////////////
 
 ////////// Initialising all PCBs/////////////////////
 i = 0;

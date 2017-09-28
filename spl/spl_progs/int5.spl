@@ -27,78 +27,65 @@ if( sysCallNo == 8)then
 
     [READY_LIST + 32 * newpcb] = newpcb;	// Set PID of the new process to the PCB index
 
-    ///// find the number of valid pages in the current process ///////
-    alias count S4;
-    i = 0;
-    count = 0;
-    while( i < 8) do
-    	 if ([PTBR + i] != -1)then
-	    count = count + 1;
-	 endif;
-	 i = i + 2;
-    endwhile;
-    ///////////////////////////////////////////////////////////////////
-
-    /// Check if enough pages are available in the memory/////////////
-    alias j S5;
-    j = count;
-    i = 29;
+    ///// find a free page for the stack of new process
+    
+    i = 24;
     while( i < 64)do
     	   if([MEM_LIST + i] == 0)then
-	   	j =  j - 1;
-	   endif;
-	   if( j == 0)then
-	       break;
+	   	break;
 	   endif;
 	   i = i + 1;
     endwhile;
     ///////////////////////////////////////////////////////////////////
-
-    /// if not return -1
-    if (j > 0)then
+    
+    /// if not found return -1
+    if (i == 64)then
        [phySP - 2] = -1;
        ireturn;
     endif;
 
-    //////// Allocate the pages for the child process //////////////////
-
-    i = 0;
-    j = 29;
+    //////// Allocate the page for the child process //////////////////
     
+    [MEM_LIST + i] = 1; //mark page as USED
+
+
+    // copy the contents from the current process' page to new allocated page
+    alias counter S5;
+    alias origpage S6;
+    counter = 0;
+    origpage = [PTBR + 3 * 2];
+    while( counter < 512) do
+         [i * 512 + counter] = [origpage * 512 + counter];
+         counter = counter + 1;
+    endwhile;
+
     alias childpt S4;
     childpt = PAGE_TABLE + newpcb * 8;   // find pagetable of child process
-    while ( i < 4)do
-    	if ([PTBR + i * 2] != -1)then	// if current page considered is valid
-	    while(j < 64)do   		// traverse the memory free list to find free pages
-	        if ([MEM_LIST + j] == 0)then	    // if page is free
-		      [MEM_LIST + j] = 1;
-		      alias k S6;
-		      alias origpage S7;
-		      origpage = [PTBR + i * 2];
-		      k = 0;
-		      
-		      // copy the contents from the current process' page to new allocated page
-		      while( k < 512) do
-		           [j * 512 + k] = [origpage * 512 + k];
-			   k = k + 1;
-		      endwhile;
-		      ///////////
+    [childpt + 3 * 2] = i ;	
+    [childpt + 3 * 2 + 1 ] = "01";
 
-		      // set page table entries of child process
-		      [childpt + i * 2] = j ;	
-		      [childpt + i * 2 + 1 ] = [PTBR + i * 2 + 1];
-		      break;
-		      /////////////////////
-		endif;				
-		
-		j = j + 1;
-	    endwhile;
+    ///////////////////////////////////////////////////////////////////
+
+    /// Copy the pagetable entries of the cuurent process to child and increment share count
+    counter = 0;
+    while ( counter < 3)do
+    	[childpt + counter * 2] = [PTBR + counter * 2 ];
+	[childpt + counter * 2 + 1 ] = [PTBR + counter * 2 + 1];
+
+	if [childpt + counter * 2 + 1] == "01" || [childpt + counter * 2 + 1] == "11" then
+	     alias page S6;
+	     page = [childpt + counter * 2];
+	     [MEM_LIST + page] = [MEM_LIST + page] + 1;	//increment memory page share count
 	else
-		[childpt + i * 2] = -1 ;	// set page table entry of invalid pages
-		[childpt + i * 2 + 1 ] = "00";
+	     alias page S6;
+	     page = [childpt + counter * 2];
+	     if (page >= 448) then
+	         [DISK_LIST + page] = [DISK_LIST + page] + 1;	// increment disk block share count
+	     endif;
 	endif;
-	i = i + 1;
-     endwhile;
+	counter = counter + 1;
+    endwhile;
+    store (6, 20);
 
      [READY_LIST + newpcb * 32 + 6 ] = PTLR;	// copy PTLR to child PCB
      [READY_LIST + newpcb * 32 + 5 ] = childpt;	// set PTBR of child process

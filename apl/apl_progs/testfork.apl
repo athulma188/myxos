@@ -1,3 +1,6 @@
+decl
+	integer pids[35];
+enddecl
 integer main()
 {
 	integer pid;
@@ -6,20 +9,34 @@ integer main()
 	integer status;
 	i = 0;
 	while(i < 35)do
-		 pid = Fork();
-		 print (pid);
+		 pids[i] = Fork();
+		 print (pids[i]);
 
-		 if(pid == -2)then
+		 if(pids[i] == -2)then
 		 	break;
 		 endif;
 		 
 		 i = i + 1;
 	endwhile;
-	status = Wait(pid);
-	print ("After Fork");
+
+	pid = i;
+
 	i = 0;
-	while(i < 100)do
-	i = i + 1;
+	while(i<100)do
+		i = i + 1;
 	endwhile;
+	
+	if (pids[pid] != -2)then
+	   i = 0;
+	   while (i<35)do
+	      status = Wait(pids[i]);
+	      i = i + 1;
+	   endwhile;
+	   print ("After Fork");
+	else
+		print ("Child exit");
+	endif;
+	
+	
 	return 0;
 }

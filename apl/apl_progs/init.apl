@@ -3,19 +3,21 @@ integer main(){
 	integer status;
 	string filename;
 	while(1==1)do
-		print("Enter the filename:");
+		print("Enter command:");
 		read(filename);
 		if(filename == "exit")then
-		    break;
+		    break; 
 		endif;
 		pid = Fork();
-		print (pid);
+		if (pid == -1)then
+		   print ("Program execution failed");
+		endif;
 		if(pid == -2)then
 	       	       status = Exec(filename);
 		       if(status == -1)then
+		       	   print ("Program execution failed");
 		           Exit();
 		       endif;
-		       print(status);
 		else
 		       status = Wait(pid);
 		endif;
