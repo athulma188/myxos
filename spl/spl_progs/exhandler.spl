@@ -35,52 +35,58 @@ if (cause == 0) then //if page fault
 	alias pgno S5;
 	alias flag S6;
 	alias curpid S7;
-	curpid = ((PTBR - 1024)/8) + 1;
+	curpid = ((PTBR - 1024)/8);
+	pgno = vpagenum;
 	flag = 0;
 	while (flag == 0) do	// do until a victim page is found
 	      if (curpid == 32)then
 	      	 curpid = 0;
 	      endif;
 	      
-	      pgno = 0;
-	      while (pgno < 3)do      	    
-	      	    if ([PAGE_TABLE + curpid * 8 + pgno * 2 + 1] == "01") then // if current search page is valid and has reference bit 0
+	      
+	      while (pgno < 3)do
+	      	    if ([PAGE_TABLE + curpid * 8 + pgno * 2 + 1]%10 == 1) then
+		    
+			if ([PAGE_TABLE + curpid * 8 + pgno * 2 + 1]/10 == 1) then
+		       	   [PAGE_TABLE + curpid * 8 + pgno * 2 + 1] = "01"; //change refernce bit to 1
+		        else if ([PAGE_TABLE + curpid * 8 + pgno * 2 + 1]/10 == 0)then
+			
+		       	   	if ([MEM_LIST + [PAGE_TABLE + curpid * 8 + pgno * 2]] > 1) then //ignore if it is a shared page
+				   pgno = pgno + 1;
+		           	   continue;
+		    	      	   endif;
+			
+				flag = 1;	// else set flag = 1
+		        	freepage = [PAGE_TABLE + curpid * 8 + pgno * 2]; 
+					
+				///search for a page to  store the victim page to swap area
+				counter = 448;
+				while (counter < 512) do
+			     	      if ([DISK_LIST + counter] == 0)then
+			      	      break;
+			      	      endif;
+			      	      counter = counter + 1;
+				endwhile;
+			
+				if (counter == 512) then	//if no free swap block found exit
+			   	   inline "JMP 11776";
+				endif;
 
-		       	if ([MEM_LIST + [PAGE_TABLE + curpid * 8 + pgno * 2]] > 1) then //ignore if it is a shared page
-		           continue;
+				store (freepage, counter);	//store victim page to swap
+
+				[DISK_LIST + counter] = 1;	// increment sharecount
+				store (6, 20);	      // store disk free list
+
+				[PAGE_TABLE + curpid * 8 + pgno * 2] = counter;	// set the page table entry of victim 
+				[PAGE_TABLE + curpid * 8 + pgno * 2 + 1] = "00";
+			
+				break;
 		    	endif;
-			
-		        flag = 1;	// else set flag = 1
-		        freepage = [PAGE_TABLE + curpid * 8 + pgno * 2]; 
-
-			////search for a page to  store the victim page to swap area
-			counter = 448;
-			while (counter < 512) do
-			      if ([DISK_LIST + counter] == 0)then
-			      	 break;
-			      endif;
-			      counter = counter + 1;
-			endwhile;
-			
-			if (counter == 512) then	//if no free swap block found exit
-			   inline "JMP 11776";
 			endif;
-
-			store (freepage, counter);	//store victim page to swap
-
-			[DISK_LIST + counter] = 1;	// increment sharecount
-			store (6, 20);	      // store disk free list
-
-			[PAGE_TABLE + curpid * 8 + pgno * 2] = counter;	// set the page table entry of victim 
-			[PAGE_TABLE + curpid * 8 + pgno * 2 + 1] = "00";
-			
-		        break;
-		    else if ([PAGE_TABLE + curpid * 8 + pgno * 2 + 1] == "11") then	//if refernce bit is 1 and page is valid
-			[PAGE_TABLE + curpid * 8 + pgno * 2 + 1] = "01"; //change refernce bit to 1
-		    endif;
-		    endif;
-		    pgno = pgno + 1;
+		     endif;
+		     pgno = pgno + 1;
 	      endwhile;
+	      pgno = 0;
 	      curpid = curpid + 1;
 	endwhile;
      

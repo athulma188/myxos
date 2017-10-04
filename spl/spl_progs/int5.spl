@@ -37,11 +37,65 @@ if( sysCallNo == 8)then
 	   i = i + 1;
     endwhile;
     ///////////////////////////////////////////////////////////////////
+    alias counter S4;
     
     /// if not found return -1
     if (i == 64)then
-       [phySP - 2] = -1;
-       ireturn;
+       	alias pgno S5;
+	alias flag S6;
+	alias curpid S7;
+	curpid = (((PTBR - 1024)/8)+1)%32;
+	pgno = 0;
+	flag = 0;
+	while (flag == 0) do	// do until a victim page is found     
+	      
+	      while (pgno < 3)do
+	      	    if ([PAGE_TABLE + curpid * 8 + pgno * 2 + 1]%10 == 1) then
+		    
+			if ([PAGE_TABLE + curpid * 8 + pgno * 2 + 1]/10 == 1) then
+		       	   [PAGE_TABLE + curpid * 8 + pgno * 2 + 1] = "01"; //change refernce bit to 1
+
+			else if ([PAGE_TABLE + curpid * 8 + pgno * 2 + 1]/10 == 0)then
+			     	alias curpage S8;
+				curpage = [PAGE_TABLE + curpid * 8 + pgno * 2];
+		       	   	if ([MEM_LIST + curpage] > 1) then //ignore if it is a shared page
+				   pgno = pgno + 1;
+		           	   continue;
+		    	      	   endif;
+			
+				flag = 1;	// else set flag = 1
+		        	i = curpage;
+					
+				///search for a page to  store the victim page to swap area
+				counter = 448;
+				while (counter < 512) do
+			     	      if ([DISK_LIST + counter] == 0)then
+			      	      break;
+			      	      endif;
+			      	      counter = counter + 1;
+				endwhile;
+			
+				if (counter == 512) then	//if no free swap block found exit
+			   	   inline "JMP 11776";
+				endif;
+
+				store (i, counter);	//store victim page to swap
+
+				[DISK_LIST + counter] = 1;	// increment sharecount
+				store (6, 20);	      // store disk free list
+
+				[PAGE_TABLE + curpid * 8 + pgno * 2] = counter;	// set the page table entry of victim 
+				[PAGE_TABLE + curpid * 8 + pgno * 2 + 1] = "00";
+			
+				break;
+		    	endif;
+			endif;
+		     endif;
+		     pgno = pgno + 1;
+	      endwhile;
+	      pgno = 0;
+	      curpid = (curpid + 1)%32;
+	endwhile;
     endif;
 
     //////// Allocate the page for the child process //////////////////
@@ -50,7 +104,6 @@ if( sysCallNo == 8)then
 
 
     // copy the contents from the current process' page to new allocated page
-    alias counter S5;
     alias origpage S6;
     counter = 0;
     origpage = [PTBR + 3 * 2];
@@ -59,7 +112,7 @@ if( sysCallNo == 8)then
          counter = counter + 1;
     endwhile;
 
-    alias childpt S4;
+    alias childpt S7;
     childpt = PAGE_TABLE + newpcb * 8;   // find pagetable of child process
     [childpt + 3 * 2] = i ;	
     [childpt + 3 * 2 + 1 ] = "01";
@@ -72,7 +125,7 @@ if( sysCallNo == 8)then
     	[childpt + counter * 2] = [PTBR + counter * 2 ];
 	[childpt + counter * 2 + 1 ] = [PTBR + counter * 2 + 1];
 
-	if [childpt + counter * 2 + 1] == "01" || [childpt + counter * 2 + 1] == "11" then
+	if ([childpt + counter * 2 + 1] % 10 == 1) then
 	     alias page S6;
 	     page = [childpt + counter * 2];
 	     [MEM_LIST + page] = [MEM_LIST + page] + 1;	//increment memory page share count
