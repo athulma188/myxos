@@ -38,16 +38,17 @@ if( sysCallNo == 8)then
     endwhile;
     ///////////////////////////////////////////////////////////////////
     alias counter S4;
-    
     /// if not found return -1
     if (i == 64)then
        	alias pgno S5;
 	alias flag S6;
 	alias curpid S7;
+	alias count S8; 
 	curpid = (((PTBR - 1024)/8)+1)%32;
 	pgno = 0;
 	flag = 0;
-	while (flag == 0) do	// do until a victim page is found     
+	count = 0;
+	while (flag == 0 && count < 64) do	// do until a victim page is found     
 	      
 	      while (pgno < 3)do
 	      	    if ([PAGE_TABLE + curpid * 8 + pgno * 2 + 1]%10 == 1) then
@@ -76,6 +77,7 @@ if( sysCallNo == 8)then
 				endwhile;
 			
 				if (counter == 512) then	//if no free swap block found exit
+				   [phySP - 1] = 10;
 			   	   inline "JMP 11776";
 				endif;
 
@@ -94,10 +96,17 @@ if( sysCallNo == 8)then
 		     pgno = pgno + 1;
 	      endwhile;
 	      pgno = 0;
+	      count = count + 1;
 	      curpid = (curpid + 1)%32;
 	endwhile;
+	if (count == 64 && flag == 0) then
+       	   [phySP - 2] = -1;
+	   breakpoint;
+       	   ireturn;
+    	endif;
     endif;
 
+    
     //////// Allocate the page for the child process //////////////////
     
     [MEM_LIST + i] = 1; //mark page as USED
@@ -139,22 +148,23 @@ if( sysCallNo == 8)then
 	counter = counter + 1;
     endwhile;
     store (6, 20);
-
-     [READY_LIST + newpcb * 32 + 6 ] = PTLR;	// copy PTLR to child PCB
-     [READY_LIST + newpcb * 32 + 5 ] = childpt;	// set PTBR of child process
-     [READY_LIST + newpcb * 32 + 4 ] = [phySP];	// copy the IP to child process' PCB
-     [READY_LIST + newpcb * 32 + 3 ] = SP - 1;  // copy stack pointer. SP - 1 because IP is on top of the stack now
-     [READY_LIST + newpcb * 32 + 2 ] = BP; // copy BP to child's PCB
+    alias childpcb S8;
+    childpcb = READY_LIST + newpcb * 32;
+     [childpcb + 6 ] = PTLR;	// copy PTLR to child PCB
+     [childpcb + 5 ] = childpt;	// set PTBR of child process
+     [childpcb + 4 ] = [phySP];	// copy the IP to child process' PCB
+     [childpcb + 3 ] = SP - 1;  // copy stack pointer. SP - 1 because IP is on top of the stack now
+     [childpcb + 2 ] = BP; // copy BP to child's PCB
 
      ///// Copy the values of registers to PCB
-     [READY_LIST + newpcb * 32 + 7] = R0;
-     [READY_LIST + newpcb * 32 + 8] = R1;
-     [READY_LIST + newpcb * 32 + 9] = R2;
-     [READY_LIST + newpcb * 32 + 10] = R3;
-     [READY_LIST + newpcb * 32 + 11] = R4;
-     [READY_LIST + newpcb * 32 + 12] = R5;
-     [READY_LIST + newpcb * 32 + 13] = R6;
-     [READY_LIST + newpcb * 32 + 14] = R7;
+     [childpcb + 7] = R0;
+     [childpcb + 8] = R1;
+     [childpcb + 9] = R2;
+     [childpcb + 10] = R3;
+     [childpcb + 11] = R4;
+     [childpcb + 12] = R5;
+     [childpcb + 13] = R6;
+     [childpcb + 14] = R7;
      //////////////////////////////////
      
      i = 0;

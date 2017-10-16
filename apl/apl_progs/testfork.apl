@@ -21,9 +21,9 @@ integer main()
 
 	pid = i;
 
-	i = 0;
-	while(i<100)do
-		i = i + 1;
+	while(0==0)do
+		status = Getpid();
+		print(status);
 	endwhile;
 	
 	if (pids[pid] != -2)then

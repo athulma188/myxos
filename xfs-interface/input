@@ -19,4 +19,6 @@ load --exec ../apl/apl_progs/test_pid.xsm
 load --exec ../apl/apl_progs/testwait.xsm
 load --exec ../apl/apl_progs/testsig.xsm
 load --exec ../apl/apl_progs/testexc.xsm
+load --exec ../apl/apl_progs/tst.xsm
+load --exec ../apl/apl_progs/test.xsm
 exit

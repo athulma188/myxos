@@ -35,10 +35,12 @@ if (cause == 0) then //if page fault
 	alias pgno S5;
 	alias flag S6;
 	alias curpid S7;
+	alias count S8;
 	curpid = ((PTBR - 1024)/8);
 	pgno = vpagenum;
 	flag = 0;
-	while (flag == 0) do	// do until a victim page is found
+	count = 0;
+	while (flag == 0 && count < 64) do	// do until a victim page is found
 	      if (curpid == 32)then
 	      	 curpid = 0;
 	      endif;
@@ -69,6 +71,7 @@ if (cause == 0) then //if page fault
 				endwhile;
 			
 				if (counter == 512) then	//if no free swap block found exit
+				   [phySP - 1] = 10;
 			   	   inline "JMP 11776";
 				endif;
 
@@ -87,11 +90,16 @@ if (cause == 0) then //if page fault
 		     pgno = pgno + 1;
 	      endwhile;
 	      pgno = 0;
+	      count = count + 1;
 	      curpid = curpid + 1;
 	endwhile;
-     
+	if (flag == 0 && count == 64 ) then
+     	   [phySP - 1] = 10;
+	   inline "JMP 11776";
+     	endif;
      endif;
 
+     
      alias phyPgno S6;
      phyPgno = [ PTBR + vpagenum * 2];	// find phy page no of page that caused page fault
      if (phyPgno >= 21 && phyPgno <= 447) then	//if it is a disk block load it to found page

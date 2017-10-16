@@ -121,6 +121,18 @@ if( sysCallNo == 13)then
     endif;
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+    counter = 0;
+    while( counter < 32) do
+    	  if ([READY_LIST + 32 * counter + 1] == 1) then
+	     break;
+	  endif;
+	  counter = counter + 1;
+    endwhile;
+
+    if (counter == 32) then
+       [phySP - 2] = -1;
+       ireturn;
+    endif;
 
     [READY_LIST + curpid * 32 + 1] = 100 + waitingpid;	/// Set state of current process as 100 + waiting PID
     
@@ -161,16 +173,16 @@ if( sysCallNo == 13)then
     [phySP - 2] = 0;
 endif;
 
-counter = curpid;
+counter = (curpid + 1 ) % 32;
 ///////////// Round robin scheduling of processes ///////////////////////
-while (1) do
+while (counter != curpid) do
+      if ([READY_LIST + counter * 32 + 1] == 1) then
+          break;		
+      endif;
+
       counter = counter + 1;
       if (counter == 32) then
       	 counter = 0;
-      endif;
-	   
-      if ([READY_LIST + counter * 32 + 1] == 1) then
-          break;		
       endif;
 endwhile;
 ////////////////////////////////

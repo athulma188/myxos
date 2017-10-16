@@ -6,6 +6,5 @@ integer main()
 	if(pid == -2)then
 	    status = Exec("printnum.xsm");
 	endif;
-	status = Wait(pid);
 	return 0;
 }
